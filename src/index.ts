@@ -53,9 +53,15 @@ app.get('/', (req, res) => {
 
 app.get('/test', async (req, res) => {
 
-    const result = await send_task({ foo: "bar" });
+    try {
+        const result = await send_task({ foo: "bar" });
+        res.send(result);
 
-    res.send(result);
+    } catch (err) {
+        console.log(err);
+        res.status(500).send({ err: 'no Socket' });
+    }
+
 });
 
 const PORT = process.env.PORT || 3100;
