@@ -11,27 +11,37 @@ const httpServer = createHttpServer(app);
 const wsServer = new SocketIOServer(httpServer);
 
 let singleSocket: Socket | null;
-let socketOK = false;
 wsServer.on("close", () => {
-    socketOK = false;
     singleSocket = null;
     console.log("closed");
 });
 
 wsServer.on("connection", (socket) => {
-    socketOK = true;
     singleSocket = socket;
     console.log("connected");
 });
 
+wsServer.on("error", (err) => {
+    singleSocket = null;
+    console.log("error", err);
+});
+
 async function send_task(task: Task): Promise<TaskResponse> {
     return new Promise((resolve, reject) => {
+        const timeout = 5000;
+
+        const timeoutId = setTimeout(() => {
+            reject(new QueueErr("Timeout"));
+            singleSocket = null;
+        }, timeout);
+
         if (!singleSocket) {
             reject(new QueueErr("No socket"));
             return;
         }
 
         singleSocket.emit("request", task, (response: TaskResponse) => {
+            clearTimeout(timeoutId);
             resolve(response);
         });
     });
@@ -58,7 +68,7 @@ app.get('/test', async (req, res) => {
         res.send(result);
 
     } catch (err) {
-        res.status(500).send({ err: 'no Socket' });
+        res.status(500).send({ err: 'socket err' });
     }
 
 });
